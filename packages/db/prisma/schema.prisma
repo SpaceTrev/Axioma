@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Market {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  resolveDate DateTime
+  status      MarketStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+}
+
+enum MarketStatus {
+  ACTIVE
+  RESOLVED
+  CANCELLED
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  userId    String
+  marketId  String
+  side      OrderSide
+  price     Float
+  quantity  Float
+  filled    Float       @default(0)
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  market    Market      @relation(fields: [marketId], references: [id])
+
+  @@index([marketId])
+  @@index([userId])
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  PENDING
+  FILLED
+  PARTIALLY_FILLED
+  CANCELLED
+}
