@@ -10,38 +10,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Market {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  resolveDate DateTime
-  status      MarketStatus @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orders      Order[]
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 enum MarketStatus {
-  ACTIVE
+  OPEN
   RESOLVED
   CANCELLED
 }
 
-model Order {
-  id        String      @id @default(uuid())
-  userId    String
-  marketId  String
-  side      OrderSide
-  price     Float
-  quantity  Float
-  filled    Float       @default(0)
-  status    OrderStatus @default(PENDING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  market    Market      @relation(fields: [marketId], references: [id])
-
-  @@index([marketId])
-  @@index([userId])
+enum Outcome {
+  YES
+  NO
 }
 
 enum OrderSide {
@@ -50,8 +36,188 @@ enum OrderSide {
 }
 
 enum OrderStatus {
-  PENDING
+  OPEN
+  PARTIAL
   FILLED
-  PARTIALLY_FILLED
   CANCELLED
 }
+
+enum LedgerReason {
+  FAUCET_CREDIT
+  ORDER_RESERVE
+  ORDER_RESERVE_RELEASE
+  TRADE_BUY
+  TRADE_SELL
+  TRADE_FEE
+  SETTLEMENT_WIN
+  SETTLEMENT_LOSS
+  MARKET_CANCEL_REFUND
+  ADMIN_ADJUSTMENT
+}
+
+// ============================================
+// USER & BALANCE
+// ============================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  balance          Balance?
+  ledgerEntries    LedgerEntry[]
+  orders           Order[]
+  positions        Position[]
+  createdMarkets   Market[]           @relation("MarketCreator")
+  resolvedMarkets  MarketResolution[] @relation("MarketResolver")
+  makerTrades      Trade[]            @relation("TradeMaker")
+  takerTrades      Trade[]            @relation("TradeTaker")
+
+  @@map("users")
+}
+
+model Balance {
+  userId    String   @id @map("user_id")
+  available Decimal  @default(0) @db.Decimal(18, 8)
+  reserved  Decimal  @default(0) @db.Decimal(18, 8)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("balances")
+}
+
+model LedgerEntry {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  deltaAvailable Decimal      @map("delta_available") @db.Decimal(18, 8)
+  deltaReserved  Decimal      @map("delta_reserved") @db.Decimal(18, 8)
+  reason         LedgerReason
+  refType        String?      @map("ref_type")
+  refId          String?      @map("ref_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refType, refId])
+  @@map("ledger_entries")
+}
+
+// ============================================
+// MARKET
+// ============================================
+
+model Market {
+  id          String       @id @default(uuid())
+  question    String
+  description String       @default("")
+  category    String       @default("general")
+  resolvesAt  DateTime     @map("resolves_at")
+  status      MarketStatus @default(OPEN)
+  createdBy   String       @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  creator    User              @relation("MarketCreator", fields: [createdBy], references: [id])
+  orders     Order[]
+  trades     Trade[]
+  positions  Position[]
+  resolution MarketResolution?
+
+  @@index([status])
+  @@index([category])
+  @@map("markets")
+}
+
+model MarketResolution {
+  marketId       String   @id @map("market_id")
+  winningOutcome Outcome  @map("winning_outcome")
+  resolvedAt     DateTime @default(now()) @map("resolved_at")
+  resolverUserId String   @map("resolver_user_id")
+
+  market   Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  resolver User   @relation("MarketResolver", fields: [resolverUserId], references: [id])
+
+  @@map("market_resolutions")
+}
+
+// ============================================
+// ORDERS & TRADING
+// ============================================
+
+model Order {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  marketId  String      @map("market_id")
+  outcome   Outcome
+  side      OrderSide
+  price     Decimal     @db.Decimal(18, 8)
+  quantity  Decimal     @db.Decimal(18, 8)
+  remaining Decimal     @db.Decimal(18, 8)
+  status    OrderStatus @default(OPEN)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market      Market  @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  makerTrades Trade[] @relation("MakerOrder")
+  takerTrades Trade[] @relation("TakerOrder")
+
+  @@index([marketId, outcome, side, status])
+  @@index([userId])
+  @@map("orders")
+}
+
+model Trade {
+  id           String   @id @default(uuid())
+  marketId     String   @map("market_id")
+  outcome      Outcome
+  price        Decimal  @db.Decimal(18, 8)
+  quantity     Decimal  @db.Decimal(18, 8)
+  makerOrderId String   @map("maker_order_id")
+  takerOrderId String   @map("taker_order_id")
+  makerUserId  String   @map("maker_user_id")
+  takerUserId  String   @map("taker_user_id")
+  takerFee     Decimal  @default(0) @map("taker_fee") @db.Decimal(18, 8)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  market     Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  makerOrder Order  @relation("MakerOrder", fields: [makerOrderId], references: [id])
+  takerOrder Order  @relation("TakerOrder", fields: [takerOrderId], references: [id])
+  maker      User   @relation("TradeMaker", fields: [makerUserId], references: [id])
+  taker      User   @relation("TradeTaker", fields: [takerUserId], references: [id])
+
+  @@index([marketId])
+  @@index([createdAt])
+  @@map("trades")
+}
+
+// ============================================
+// POSITIONS
+// ============================================
+
+model Position {
+  id             String  @id @default(uuid())
+  userId         String  @map("user_id")
+  marketId       String  @map("market_id")
+  outcome        Outcome
+  shares         Decimal @default(0) @db.Decimal(18, 8)
+  reservedShares Decimal @default(0) @map("reserved_shares") @db.Decimal(18, 8)
+  avgPrice       Decimal @default(0) @map("avg_price") @db.Decimal(18, 8)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, marketId, outcome])
+  @@index([userId])
+  @@index([marketId])
+  @@map("positions")
+}
+
+// ============================================
+// SYSTEM ACCOUNTS
+// ============================================
+
+// We use a special user with id "system" for fee collection
+// This is created via seed script

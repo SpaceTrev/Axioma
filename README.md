@@ -1,206 +1,148 @@
 # Axioma
 
-Crypto prediction market built with pnpm + Turborepo monorepo architecture.
+A binary prediction market platform with ledgered accounting and a deterministic matching engine.
 
 ## 🏗️ Architecture
 
-This is a monorepo using pnpm workspaces and Turborepo with the following structure:
+This is a monorepo using pnpm workspaces and Turborepo:
 
 ### Apps
 
-- **apps/api** - Fastify TypeScript backend API
-  - RESTful API for markets and orders
-  - Real-time order matching engine
-  - PostgreSQL database via Prisma
-- **apps/web** - Next.js TypeScript frontend
-  - Server-side rendered React application
-  - Connects to the Fastify API
+- **apps/api** - Fastify REST API
+  - JWT authentication
+  - Order matching & execution
+  - Market resolution & settlement
+  - Swagger API docs at `/docs`
+- **apps/web** - Next.js frontend
+  - Market listing & trading UI
+  - Portfolio management
+  - Admin dashboard
 
 ### Packages
 
-- **packages/shared** - Zod validation schemas
-  - Shared types and validation logic
-  - Used across API and web apps
-- **packages/db** - Prisma database client
-  - PostgreSQL schema and client
-  - Shared database access layer
-- **packages/engine** - Matching and settlement logic
-  - Order matching engine
-  - Settlement processing
-  - Includes comprehensive test suite
+- **packages/shared** - Shared types, Zod schemas, DTOs
+- **packages/db** - Prisma client & database transactions
+- **packages/engine** - Matching engine & settlement logic
+- **packages/ledger** - Ledger types & invariant validation
+- **packages/api-client** - Typed API client for web/mobile
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- pnpm >= 8.0.0
-- Docker and Docker Compose (for PostgreSQL)
+- Node.js >= 18
+- pnpm >= 8
+- Docker (for PostgreSQL)
 
-### Installation
-
-1. Clone the repository:
+### Setup
 
 ```bash
+# Clone and install
 git clone https://github.com/SpaceTrev/Axioma.git
 cd Axioma
-```
-
-2. Install dependencies:
-
-```bash
 pnpm install
-```
 
-3. Set up environment variables:
-
-```bash
-cp .env.example .env
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-```
-
-4. Start PostgreSQL:
-
-```bash
+# Start PostgreSQL
 docker-compose up -d
-```
 
-5. Generate Prisma client and push schema:
-
-```bash
+# Setup database
 cd packages/db
 pnpm db:generate
 pnpm db:push
-```
+pnpm db:seed
 
-### Development
-
-Start all apps in development mode:
-
-```bash
+# Start development servers
+cd ../..
 pnpm dev
 ```
 
-This will start:
+This starts:
+- **API** at http://localhost:3001 (Swagger docs at http://localhost:3001/docs)
+- **Web** at http://localhost:3000
 
-- API at http://localhost:3001
-- Web at http://localhost:3000
+### Default Accounts (after seeding)
 
-### Testing
+| Email | Password | Role |
+|-------|----------|------|
+| admin@axioma.io | admin123 | ADMIN |
+| user@example.com | password123 | USER |
 
-Run tests for the engine package:
+## 📚 Documentation
+
+- [Engine Design](docs/ENGINE.md) - Matching engine & settlement logic
+- [Security Model](docs/SECURITY.md) - Authentication & authorization
+
+## 🧪 Testing
 
 ```bash
+# Run all tests
 pnpm test
-```
 
-Run tests for a specific package:
-
-```bash
+# Run specific package tests
 cd packages/engine
 pnpm test
 ```
 
-## 📦 Package Scripts
+## 💡 Key Concepts
 
-### Root Scripts
+### Binary Markets
+Each market is a YES/NO question. Shares pay out 1 USDC if correct, 0 if wrong.
 
-- `pnpm dev` - Start all apps in development mode
-- `pnpm build` - Build all apps and packages
-- `pnpm test` - Run all tests
-- `pnpm lint` - Lint all code
-- `pnpm format` - Format code with Prettier
+### Ledgered Accounting
+All balance changes go through append-only ledger entries with double-entry bookkeeping invariants.
 
-### API Scripts (apps/api)
+### Order Matching
+- Limit orders only for MVP
+- Price-time priority (best price first, then earliest)
+- BUY orders reserve `price × quantity`
+- SELL orders reserve shares from positions
 
-- `pnpm dev` - Start API in development mode
-- `pnpm build` - Build API for production
-- `pnpm start` - Start production build
+### Settlement
+- Market resolution pays winners 1 USDC per share
+- Losers receive nothing
+- Open orders are cancelled and reserves released
 
-### Web Scripts (apps/web)
+## 📦 API Endpoints
 
-- `pnpm dev` - Start Next.js in development mode
-- `pnpm build` - Build Next.js for production
-- `pnpm start` - Start production build
+### Auth
+- `POST /api/auth/register` - Create account
+- `POST /api/auth/login` - Get JWT token
+- `GET /api/auth/me` - Get current user
 
-### Database Scripts (packages/db)
+### Markets
+- `GET /api/markets` - List markets
+- `GET /api/markets/:id` - Get market details
+- `POST /api/markets` - Create market (auth)
+- `GET /api/markets/:id/orderbook` - Get order book
+- `GET /api/markets/:id/trades` - Get trade history
+- `POST /api/markets/:id/orders` - Place order (auth)
+- `POST /api/markets/:id/resolve` - Resolve market (admin)
+- `POST /api/markets/:id/cancel` - Cancel market (admin)
 
-- `pnpm db:generate` - Generate Prisma client
-- `pnpm db:push` - Push schema to database
-- `pnpm db:migrate` - Run migrations
-- `pnpm db:studio` - Open Prisma Studio
+### Orders
+- `GET /api/orders` - List user's orders
+- `GET /api/orders/:id` - Get order details
+- `POST /api/orders/:id/cancel` - Cancel order
 
-### Engine Scripts (packages/engine)
+### Portfolio
+- `GET /api/portfolio` - Get balance, positions, summary
+- `GET /api/portfolio/trades` - Trade history
+- `GET /api/portfolio/ledger` - Ledger history
 
-- `pnpm test` - Run tests with Jest
-- `pnpm test:watch` - Run tests in watch mode
+### Dev (development only)
+- `POST /api/dev/faucet` - Get test USDC
+- `POST /api/dev/reset` - Reset account
+- `GET /api/dev/stats` - Platform statistics
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Backend**: Fastify, TypeScript
+- **Frontend**: Next.js 14, React 18, TailwindCSS, SWR, Zustand
+- **Backend**: Fastify 4, TypeScript
 - **Database**: PostgreSQL, Prisma
 - **Validation**: Zod
-- **Build**: Turborepo, pnpm workspaces
-- **Testing**: Jest
-- **Code Quality**: ESLint, Prettier
-
-## 📝 API Endpoints
-
-### Markets
-
-- `GET /api/markets` - List all markets
-- `GET /api/markets/:id` - Get market by ID
-- `POST /api/markets` - Create new market
-
-### Orders
-
-- `GET /api/orders/market/:marketId` - Get orders for market
-- `POST /api/orders` - Create new order
-- `GET /api/orders/book/:marketId` - Get order book
-
-### Health
-
-- `GET /health` - API health check
-
-## 🐳 Docker Services
-
-PostgreSQL database is available via Docker Compose:
-
-- Host: localhost
-- Port: 5432
-- Database: axioma
-- User: axioma
-- Password: axioma_dev_password
-
-## 📚 Project Structure
-
-```
-Axioma/
-├── apps/
-│   ├── api/              # Fastify API
-│   └── web/              # Next.js frontend
-├── packages/
-│   ├── db/               # Prisma database client
-│   ├── engine/           # Matching & settlement logic
-│   └── shared/           # Shared Zod schemas
-├── .env.example          # Environment variables template
-├── docker-compose.yml    # PostgreSQL setup
-├── package.json          # Root package config
-├── pnpm-workspace.yaml   # pnpm workspace config
-├── turbo.json           # Turborepo config
-└── tsconfig.json        # Shared TypeScript config
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- **Build**: Turborepo, pnpm
+- **Testing**: Vitest
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+MIT
