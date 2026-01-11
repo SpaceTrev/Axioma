@@ -74,6 +74,8 @@ export const orderRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Get order book
+  // Note: Currently returns a global order book. In production, this should be
+  // per-market using the marketId parameter.
   fastify.get('/book/:marketId', async (request, reply) => {
     try {
       const orderBook = matchingEngine.getOrderBook();
