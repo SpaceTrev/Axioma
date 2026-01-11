@@ -12,7 +12,6 @@ This is a monorepo using pnpm workspaces and Turborepo with the following struct
   - RESTful API for markets and orders
   - Real-time order matching engine
   - PostgreSQL database via Prisma
-  
 - **apps/web** - Next.js TypeScript frontend
   - Server-side rendered React application
   - Connects to the Fastify API
@@ -22,11 +21,9 @@ This is a monorepo using pnpm workspaces and Turborepo with the following struct
 - **packages/shared** - Zod validation schemas
   - Shared types and validation logic
   - Used across API and web apps
-  
 - **packages/db** - Prisma database client
   - PostgreSQL schema and client
   - Shared database access layer
-  
 - **packages/engine** - Matching and settlement logic
   - Order matching engine
   - Settlement processing
@@ -43,17 +40,20 @@ This is a monorepo using pnpm workspaces and Turborepo with the following struct
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/SpaceTrev/Axioma.git
 cd Axioma
 ```
 
 2. Install dependencies:
+
 ```bash
 pnpm install
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
@@ -61,11 +61,13 @@ cp apps/web/.env.example apps/web/.env
 ```
 
 4. Start PostgreSQL:
+
 ```bash
 docker-compose up -d
 ```
 
 5. Generate Prisma client and push schema:
+
 ```bash
 cd packages/db
 pnpm db:generate
@@ -75,22 +77,26 @@ pnpm db:push
 ### Development
 
 Start all apps in development mode:
+
 ```bash
 pnpm dev
 ```
 
 This will start:
+
 - API at http://localhost:3001
 - Web at http://localhost:3000
 
 ### Testing
 
 Run tests for the engine package:
+
 ```bash
 pnpm test
 ```
 
 Run tests for a specific package:
+
 ```bash
 cd packages/engine
 pnpm test
@@ -143,21 +149,25 @@ pnpm test
 ## 📝 API Endpoints
 
 ### Markets
+
 - `GET /api/markets` - List all markets
 - `GET /api/markets/:id` - Get market by ID
 - `POST /api/markets` - Create new market
 
 ### Orders
+
 - `GET /api/orders/market/:marketId` - Get orders for market
 - `POST /api/orders` - Create new order
 - `GET /api/orders/book/:marketId` - Get order book
 
 ### Health
+
 - `GET /health` - API health check
 
 ## 🐳 Docker Services
 
 PostgreSQL database is available via Docker Compose:
+
 - Host: localhost
 - Port: 5432
 - Database: axioma

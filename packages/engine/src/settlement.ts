@@ -40,8 +40,6 @@ export class SettlementEngine {
    * Get settlements for a specific user
    */
   getSettlementsForUser(userId: string): Settlement[] {
-    return this.settlements.filter(
-      (s) => s.buyerUserId === userId || s.sellerUserId === userId
-    );
+    return this.settlements.filter((s) => s.buyerUserId === userId || s.sellerUserId === userId);
   }
 }

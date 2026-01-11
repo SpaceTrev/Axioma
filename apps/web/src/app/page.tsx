@@ -3,7 +3,7 @@ export default function Home() {
     <main style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
       <h1>Axioma</h1>
       <p>Crypto Prediction Market</p>
-      
+
       <div style={{ marginTop: '2rem' }}>
         <h2>Features</h2>
         <ul>

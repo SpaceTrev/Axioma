@@ -47,11 +47,7 @@ export const orderRoutes: FastifyPluginAsync = async (fastify) => {
         const sellOrder = await prisma.order.findUnique({ where: { id: match.sellOrderId } });
 
         if (buyOrder && sellOrder) {
-          const settlement = settlementEngine.settle(
-            match,
-            buyOrder.userId,
-            sellOrder.userId
-          );
+          const settlement = settlementEngine.settle(match, buyOrder.userId, sellOrder.userId);
           settlements.push(settlement);
 
           // Update order statuses
